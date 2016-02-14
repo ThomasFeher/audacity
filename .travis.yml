@@ -1,18 +1,9 @@
 sudo: required
 dist: trusty
-addons:
-    apt:
-        sources:
-            - ubuntu-toolchain-r-test
-        packages:
-            - g++-4.8
-            - gcc-4.8
 before_install:
     - sudo apt-get update -qq
     - sudo apt-get install -y libwxgtk3.0-dev libgtk2.0-dev
-    - git show -s --format="wxT(\"<a href=\\\"http://github.com/audacity/audacity/commit/%H\\\">%h</a> of %cd\")"
-    - export CXX="g++-4.8" CC="gcc-4.8"
-    - g++-4.8 --version
+    - g++ --version
     - uname -a
 language:
     - cpp
