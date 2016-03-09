@@ -201,7 +201,7 @@ public:
    }
 };
 
-class AUDACITY_DLL_API WaveClip : public XMLTagHandler
+class AUDACITY_DLL_API WaveClip final : public XMLTagHandler
 {
 private:
    // It is an error to copy a WaveClip without specifying the DirManager.
@@ -265,6 +265,7 @@ public:
                    sampleCount start, sampleCount len);
 
    Envelope* GetEnvelope() { return mEnvelope; }
+   const Envelope* GetEnvelope() const { return mEnvelope; }
    BlockArray* GetSequenceBlockArray();
 
    // Get low-level access to the sequence. Whenever possible, don't use this,
@@ -278,23 +279,23 @@ public:
    void MarkChanged() { mDirty++; }
 
    /// Create clip from copy, discarding previous information in the clip
-   bool CreateFromCopy(double t0, double t1, WaveClip* other);
+   bool CreateFromCopy(double t0, double t1, const WaveClip* other);
 
    /** Getting high-level data from the for screen display and clipping
     * calculations and Contrast */
    bool GetWaveDisplay(WaveDisplay &display,
-                       double t0, double pixelsPerSecond, bool &isLoadingOD);
+                       double t0, double pixelsPerSecond, bool &isLoadingOD) const;
    bool GetSpectrogram(WaveTrackCache &cache,
                        const float *& spectrogram, const sampleCount *& where,
                        int numPixels,
-                       double t0, double pixelsPerSecond);
+                       double t0, double pixelsPerSecond) const;
    bool GetMinMax(float *min, float *max, double t0, double t1);
    bool GetRMS(float *rms, double t0, double t1);
 
    // Set/clear/get rectangle that this WaveClip fills on screen. This is
    // called by TrackArtist while actually drawing the tracks and clips.
    void ClearDisplayRect();
-   void SetDisplayRect(const wxRect& r);
+   void SetDisplayRect(const wxRect& r) const;
    void GetDisplayRect(wxRect* r);
 
    /** Whenever you do an operation to the sequence that will change the number
@@ -309,10 +310,10 @@ public:
    /// Flush must be called after last Append
    bool Flush();
 
-   bool AppendAlias(wxString fName, sampleCount start,
+   bool AppendAlias(const wxString &fName, sampleCount start,
                     sampleCount len, int channel,bool useOD);
 
-   bool AppendCoded(wxString fName, sampleCount start,
+   bool AppendCoded(const wxString &fName, sampleCount start,
                             sampleCount len, int channel, int decodeType);
 
    /// This name is consistent with WaveTrack::Clear. It performs a "Cut"
@@ -339,7 +340,7 @@ public:
                     double* cutLineStart = NULL,
                     double *cutLineEnd = NULL);
 
-   /** Expand cut line (that is, re-insert audio, then delete audio saved in
+   /** Expand cut line (that is, re-insert audio, then DELETE audio saved in
     * cut line). Returns true if a cut line could be found and sucessfully
     * expanded, false otherwise */
    bool ExpandCutLine(double cutLinePosition);
@@ -367,20 +368,20 @@ public:
    // XMLTagHandler callback methods for loading and saving
    //
 
-   virtual bool HandleXMLTag(const wxChar *tag, const wxChar **attrs);
-   virtual void HandleXMLEndTag(const wxChar *tag);
-   virtual XMLTagHandler *HandleXMLChild(const wxChar *tag);
-   virtual void WriteXML(XMLWriter &xmlFile);
+   bool HandleXMLTag(const wxChar *tag, const wxChar **attrs) override;
+   void HandleXMLEndTag(const wxChar *tag) override;
+   XMLTagHandler *HandleXMLChild(const wxChar *tag) override;
+   void WriteXML(XMLWriter &xmlFile) /* not override */;
 
    // Cache of values to colour pixels of Spectrogram - used by TrackArtist
-   SpecPxCache    *mSpecPxCache;
+   mutable SpecPxCache    *mSpecPxCache;
 
    // AWD, Oct 2009: for pasting whitespace at the end of selection
    bool GetIsPlaceholder() const { return mIsPlaceholder; }
    void SetIsPlaceholder(bool val) { mIsPlaceholder = val; }
 
 protected:
-   wxRect mDisplayRect;
+   mutable wxRect mDisplayRect;
 
    double mOffset;
    int mRate;
@@ -389,10 +390,10 @@ protected:
    Sequence *mSequence;
    Envelope *mEnvelope;
 
-   WaveCache    *mWaveCache;
-   ODLock       mWaveCacheMutex;
-   SpecCache    *mSpecCache;
-   samplePtr     mAppendBuffer;
+   mutable WaveCache    *mWaveCache;
+   mutable ODLock       mWaveCacheMutex;
+   mutable SpecCache    *mSpecCache;
+   SampleBuffer  mAppendBuffer;
    sampleCount   mAppendBufferLen;
 
    // Cut Lines are nothing more than ordinary wave clips, with the

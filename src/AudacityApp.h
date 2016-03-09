@@ -96,12 +96,12 @@ enum
 
 class BlockFile;
 
-class AudacityApp:public wxApp {
+class AudacityApp final : public wxApp {
  public:
    AudacityApp();
-   virtual bool OnInit(void);
-   virtual int OnExit(void);
-   virtual void OnFatalException();
+   bool OnInit(void) override;
+   int OnExit(void) override;
+   void OnFatalException() override;
 
    int FilterEvent(wxEvent & event);
 
@@ -123,7 +123,7 @@ class AudacityApp:public wxApp {
    void OnMRUClear(wxCommandEvent &event);
    void OnMRUFile(wxCommandEvent &event);
    // Backend for above - returns true for success, false for failure
-   bool MRUOpen(wxString fileName);
+   bool MRUOpen(const wxString &fileName);
 
    void OnReceiveCommand(AppCommandEvent &event);
 
@@ -151,9 +151,9 @@ class AudacityApp:public wxApp {
 
    #ifdef __WXMAC__
     // In response to Apple Events
-    virtual void MacOpenFile(const wxString &fileName) ;
-    virtual void MacPrintFile(const wxString &fileName) ;
-    virtual void MacNewFile() ;
+    void MacOpenFile(const wxString &fileName)  override;
+    void MacPrintFile(const wxString &fileName)  override;
+    void MacNewFile()  override;
    #endif
 
    #if defined(__WXMSW__) && !defined(__WXUNIVERSAL__) && !defined(__CYGWIN__)
@@ -174,9 +174,9 @@ class AudacityApp:public wxApp {
    wxString defaultTempDir;
 
    // Useful functions for working with search paths
-   static void AddUniquePathToPathList(wxString path,
+   static void AddUniquePathToPathList(const wxString &path,
                                        wxArrayString &pathList);
-   static void AddMultiPathsToPathList(wxString multiPathString,
+   static void AddMultiPathsToPathList(const wxString &multiPathString,
                                        wxArrayString &pathList);
    static void FindFilesInPathList(const wxString & pattern,
                                    const wxArrayString & pathList,
@@ -214,7 +214,7 @@ class AudacityApp:public wxApp {
    void DeInitCommandHandler();
 
    bool InitTempDir();
-   bool CreateSingleInstanceChecker(wxString dir);
+   bool CreateSingleInstanceChecker(const wxString &dir);
 
    wxCmdLineParser *ParseCommandLine();
 

@@ -40,14 +40,14 @@ class CommandType;
 
 ////////////////////////////////////////////////////////////////////////////////
 
-class ScreenFrame:public wxFrame
+class ScreenFrame final : public wxFrame
 {
  public:
    // constructors and destructors
    ScreenFrame(wxWindow *parent, wxWindowID id);
    virtual ~ScreenFrame();
 
-   virtual bool ProcessEvent(wxEvent & event);
+   bool ProcessEvent(wxEvent & event) override;
 
  private:
    void Populate();
@@ -133,7 +133,7 @@ void CloseScreenshotTools()
 
 ////////////////////////////////////////////////////////////////////////////////
 
-class ScreenFrameTimer:public wxTimer
+class ScreenFrameTimer final : public wxTimer
 {
  public:
    ScreenFrameTimer(ScreenFrame *frame,
@@ -143,7 +143,7 @@ class ScreenFrameTimer:public wxTimer
       evt = event.Clone();
    }
 
-   virtual void Notify()
+   void Notify() override
    {
       evt->SetEventObject(NULL);
       screenFrame->ProcessEvent(*evt);
@@ -333,13 +333,14 @@ void ScreenFrame::PopulateOrExchange(ShuttleGui & S)
             S.Id(IdMainWindowLarge).AddButton(_("Resize Large"));
             /* i18n-hint: Bkgnd is short for background and appears on a small button
              * It is OK to just translate this item as if it said 'Blue' */
-            mBlue = new wxToggleButton(p,
+            wxASSERT(p); // To justify safenew
+            mBlue = safenew wxToggleButton(p,
                                        IdToggleBackgroundBlue,
                                        _("Blue Bkgnd"));
             S.AddWindow(mBlue);
             /* i18n-hint: Bkgnd is short for background and appears on a small button
              * It is OK to just translate this item as if it said 'White' */
-            mWhite = new wxToggleButton(p,
+            mWhite = safenew wxToggleButton(p,
                                         IdToggleBackgroundWhite,
                                         _("White Bkgnd"));
             S.AddWindow(mWhite);

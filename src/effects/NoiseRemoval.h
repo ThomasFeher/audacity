@@ -32,7 +32,7 @@ class WaveTrack;
 
 #include "../RealFFTf.h"
 
-class EffectNoiseRemoval : public Effect
+class EffectNoiseRemoval final : public Effect
 {
 public:
    EffectNoiseRemoval();
@@ -40,20 +40,20 @@ public:
 
    // IdentInterface implementation
 
-   virtual wxString GetSymbol();
-   virtual wxString GetDescription();
+   wxString GetSymbol() override;
+   wxString GetDescription() override;
 
    // EffectIdentInterface implementation
 
-   virtual EffectType GetType();
-   virtual bool SupportsAutomation();
+   EffectType GetType() override;
+   bool SupportsAutomation() override;
 
    // Effect implementation
 
-   virtual bool PromptUser();
-   virtual bool Init();
-   virtual bool CheckWhetherSkipEffect();
-   virtual bool Process();
+   bool PromptUser() override;
+   bool Init() override;
+   bool CheckWhetherSkipEffect() override;
+   bool Process() override;
 
 private:
 
@@ -128,7 +128,7 @@ private:
 
 // Declare window functions
 
-class NoiseRemovalDialog: public EffectDialog
+class NoiseRemovalDialog final : public EffectDialog
 {
 public:
    // constructors and destructors

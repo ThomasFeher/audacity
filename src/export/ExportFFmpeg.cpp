@@ -90,7 +90,7 @@ static int AdjustFormatIndex(int format)
 // ExportFFmpeg
 //----------------------------------------------------------------------------
 
-class ExportFFmpeg : public ExportPlugin
+class ExportFFmpeg final : public ExportPlugin
 {
 public:
 
@@ -101,16 +101,16 @@ public:
    bool CheckFileName(wxFileName &filename, int format = 0);
 
    /// Format intialization
-   bool Init(const char *shortname, AudacityProject *project, Tags *metadata, int subformat);
+   bool Init(const char *shortname, AudacityProject *project, const Tags *metadata, int subformat);
 
    /// Codec intialization
    bool InitCodecs(AudacityProject *project);
 
    /// Writes metadata
-   bool AddTags(Tags *metadata);
+   bool AddTags(const Tags *metadata);
 
    /// Sets individual metadata values
-   void SetMetadata(Tags *tags, const char *name, const wxChar *tag);
+   void SetMetadata(const Tags *tags, const char *name, const wxChar *tag);
 
    /// Encodes audio
    bool EncodeAudioFrame(int16_t *pFrame, int frameSize);
@@ -140,13 +140,13 @@ public:
    ///\return true if export succeded
    int Export(AudacityProject *project,
       int channels,
-      wxString fName,
+      const wxString &fName,
       bool selectedOnly,
       double t0,
       double t1,
       MixerSpec *mixerSpec = NULL,
-      Tags *metadata = NULL,
-      int subformat = 0);
+      const Tags *metadata = NULL,
+      int subformat = 0) override;
 
 private:
 
@@ -256,7 +256,7 @@ bool ExportFFmpeg::CheckFileName(wxFileName & WXUNUSED(filename), int WXUNUSED(f
    return result;
 }
 
-bool ExportFFmpeg::Init(const char *shortname, AudacityProject *project, Tags *metadata, int subformat)
+bool ExportFFmpeg::Init(const char *shortname, AudacityProject *project, const Tags *metadata, int subformat)
 {
    int err;
    //FFmpegLibsInst->LoadLibs(NULL,true); //Loaded at startup or from Prefs now
@@ -312,7 +312,8 @@ bool ExportFFmpeg::Init(const char *shortname, AudacityProject *project, Tags *m
    if (!InitCodecs(project))
       return false;
 
-   if (metadata == NULL) metadata = project->GetTags();
+   if (metadata == NULL)
+      metadata = project->GetTags();
 
    // Add metadata BEFORE writing the header.
    // At the moment that works with ffmpeg-git and ffmpeg-0.5 for MP4.
@@ -588,6 +589,12 @@ static int encode_audio(AVCodecContext *avctx, AVPacket *pkt, int16_t *audio_sam
             case AV_SAMPLE_FMT_FLTP:
                ((float*)(frame->data[ch]))[i] = audio_samples[ch + i*avctx->channels] / 32767.;
                break;
+            case AV_SAMPLE_FMT_NONE:
+            case AV_SAMPLE_FMT_DBL:
+            case AV_SAMPLE_FMT_DBLP:
+            case AV_SAMPLE_FMT_NB:
+               wxASSERT(false);
+               break;
             }
          }
       }
@@ -791,8 +798,8 @@ bool ExportFFmpeg::EncodeAudioFrame(int16_t *pFrame, int frameSize)
 
 
 int ExportFFmpeg::Export(AudacityProject *project,
-                       int channels, wxString fName,
-                       bool selectionOnly, double t0, double t1, MixerSpec *mixerSpec, Tags *metadata, int subformat)
+                       int channels, const wxString &fName,
+                       bool selectionOnly, double t0, double t1, MixerSpec *mixerSpec, const Tags *metadata, int subformat)
 {
    if (!CheckFFmpegPresence())
       return false;
@@ -810,7 +817,7 @@ int ExportFFmpeg::Export(AudacityProject *project,
       return false;
    }
    mName = fName;
-   TrackList *tracks = project->GetTracks();
+   const TrackList *tracks = project->GetTracks();
    bool ret = true;
 
    if (mSubFormat >= FMT_LAST) return false;
@@ -823,37 +830,34 @@ int ExportFFmpeg::Export(AudacityProject *project,
    if (!ret) return false;
 
    int pcmBufferSize = 1024;
-   int numWaveTracks;
-   WaveTrack **waveTracks;
-   tracks->GetWaveTracks(selectionOnly, &numWaveTracks, &waveTracks);
-   Mixer *mixer = CreateMixer(numWaveTracks, waveTracks,
+   const WaveTrackConstArray waveTracks =
+      tracks->GetWaveTrackConstArray(selectionOnly, false);
+   Mixer *mixer = CreateMixer(waveTracks,
       tracks->GetTimeTrack(),
       t0, t1,
       channels, pcmBufferSize, true,
       mSampleRate, int16Sample, true, mixerSpec);
-   delete [] waveTracks;
-
-   ProgressDialog *progress = new ProgressDialog(wxFileName(fName).GetName(),
-      selectionOnly ?
-      wxString::Format(_("Exporting selected audio as %s"), ExportFFmpegOptions::fmts[mSubFormat].description) :
-   wxString::Format(_("Exporting entire file as %s"), ExportFFmpegOptions::fmts[mSubFormat].description));
 
    int updateResult = eProgressSuccess;
+   {
+      ProgressDialog progress(wxFileName(fName).GetName(),
+         selectionOnly ?
+         wxString::Format(_("Exporting selected audio as %s"), ExportFFmpegOptions::fmts[mSubFormat].description) :
+         wxString::Format(_("Exporting entire file as %s"), ExportFFmpegOptions::fmts[mSubFormat].description));
 
-   while(updateResult == eProgressSuccess) {
-      sampleCount pcmNumSamples = mixer->Process(pcmBufferSize);
+      while (updateResult == eProgressSuccess) {
+         sampleCount pcmNumSamples = mixer->Process(pcmBufferSize);
 
-      if (pcmNumSamples == 0)
-         break;
+         if (pcmNumSamples == 0)
+            break;
 
-      short *pcmBuffer = (short *)mixer->GetBuffer();
+         short *pcmBuffer = (short *)mixer->GetBuffer();
 
-      EncodeAudioFrame(pcmBuffer,(pcmNumSamples)*sizeof(int16_t)*mChannels);
+         EncodeAudioFrame(pcmBuffer, (pcmNumSamples)*sizeof(int16_t)*mChannels);
 
-      updateResult = progress->Update(mixer->MixGetCurrentTime()-t0, t1-t0);
+         updateResult = progress.Update(mixer->MixGetCurrentTime() - t0, t1 - t0);
+      }
    }
-
-   delete progress;
 
    delete mixer;
 
@@ -874,7 +878,7 @@ void AddStringTagANSI(char field[], int size, wxString value)
       memcpy(field,value.mb_str(),(int)strlen(value.mb_str()) > size -1 ? size -1 : strlen(value.mb_str()));
 }
 
-bool ExportFFmpeg::AddTags(Tags *tags)
+bool ExportFFmpeg::AddTags(const Tags *tags)
 {
    if (tags == NULL)
    {
@@ -892,7 +896,7 @@ bool ExportFFmpeg::AddTags(Tags *tags)
    return true;
 }
 
-void ExportFFmpeg::SetMetadata(Tags *tags, const char *name, const wxChar *tag)
+void ExportFFmpeg::SetMetadata(const Tags *tags, const char *name, const wxChar *tag)
 {
    if (tags->HasTag(tag))
    {
@@ -983,27 +987,28 @@ int ExportFFmpeg::AskResample(int bitrate, int rate, int lowrate, int highrate, 
 
 wxWindow *ExportFFmpeg::OptionsCreate(wxWindow *parent, int format)
 {
+   wxASSERT(parent); // to justify safenew
    // subformat index may not correspond directly to fmts[] index, convert it
    mSubFormat = AdjustFormatIndex(format);
    if (mSubFormat == FMT_M4A)
    {
-      return new ExportFFmpegAACOptions(parent, format);
+      return safenew ExportFFmpegAACOptions(parent, format);
    }
    else if (mSubFormat == FMT_AC3)
    {
-      return new ExportFFmpegAC3Options(parent, format);
+      return safenew ExportFFmpegAC3Options(parent, format);
    }
    else if (mSubFormat == FMT_AMRNB)
    {
-      return new ExportFFmpegAMRNBOptions(parent, format);
+      return safenew ExportFFmpegAMRNBOptions(parent, format);
    }
    else if (mSubFormat == FMT_WMA2)
    {
-      return new ExportFFmpegWMAOptions(parent, format);
+      return safenew ExportFFmpegWMAOptions(parent, format);
    }
    else if (mSubFormat == FMT_OTHER)
    {
-      return new ExportFFmpegCustomOptions(parent, format);
+      return safenew ExportFFmpegCustomOptions(parent, format);
    }
 
    return ExportPlugin::OptionsCreate(parent, format);

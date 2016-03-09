@@ -34,7 +34,7 @@
 
 // Documentation: Rather than have a lengthy \todo section, having
 // a \todo a \file and a \page in EXACTLY that order gets Doxygen to
-// put the following lengthy description of refactoring on a new page
+// put the following lengthy description of refactoring on a NEW page
 // and link to it from the docs.
 
 /*****************************************************************//**
@@ -146,7 +146,7 @@ is time to refresh some aspect of the screen.
   Stereo channel grouping.
 
   The precise names of the classes are subject to revision.
-  Have deliberately not created new files for the new classes
+  Have deliberately not created NEW files for the new classes
   such as AdornedRulerPanel and TrackInfo - yet.
 
 *//*****************************************************************/
@@ -181,6 +181,7 @@ is time to refresh some aspect of the screen.
 #include "TimeTrack.h"
 #include "TrackArtist.h"
 #include "TrackPanelAx.h"
+#include "UndoManager.h"
 #include "WaveTrack.h"
 
 #include "commands/Keyboard.h"
@@ -942,7 +943,7 @@ void TrackPanel::SelectTrackLength(Track *t)
 {
    AudacityProject *p = GetActiveProject();
    SyncLockedTracksIterator it(mTracks);
-   Track *t1 = it.First(t);
+   Track *t1 = it.StartWith(t);
    double minOffset = t->GetOffset();
    double maxEnd = t->GetEndTime();
 
@@ -1148,7 +1149,7 @@ void TrackPanel::DrawQuickPlayIndicator(int x, bool snapped)
          // Convert virtual coordinate to physical
          int y = t->GetY() - mViewInfo->vpos;
 
-         // Draw the new indicator in its new location
+         // Draw the NEW indicator in its new location
          AColor::Line(dc,
                       x,
                       y + kTopMargin,
@@ -1198,7 +1199,7 @@ void TrackPanel::TimerUpdateIndicator(double playPos)
       }
 
       // Always update scrollbars even if not scrolling the window. This is
-      // important when new audio is recorded, because this can change the
+      // important when NEW audio is recorded, because this can change the
       // length of the project and therefore the appearance of the scrollbar.
       MakeParentRedrawScrollbars();
 
@@ -1295,7 +1296,7 @@ void TrackPanel::DoDrawIndicator(wxDC & dc)
       // Convert virtual coordinate to physical
       int y = t->GetY() - mViewInfo->vpos;
 
-      // Draw the new indicator in its new location
+      // Draw the NEW indicator in its new location
       AColor::Line(dc,
                    mLastIndicatorX,
                    y + kTopMargin,
@@ -1430,53 +1431,52 @@ void TrackPanel::OnPaint(wxPaintEvent & /* event */)
    wxStopWatch sw;
 #endif
 
-   // Construct the paint DC on the heap so that it may be deleted
-   // early
-   wxPaintDC *dc = new wxPaintDC(this);
-
-   // Retrieve the damage rectangle
-   wxRect box = GetUpdateRegion().GetBox();
-
-   // Recreate the backing bitmap if we have a full refresh
-   // (See TrackPanel::Refresh())
-   if (mRefreshBacking || (box == GetRect()))
    {
-      // Reset (should a mutex be used???)
-      mRefreshBacking = false;
+      wxPaintDC dc(this);
 
-      if (mResizeBacking)
+      // Retrieve the damage rectangle
+      wxRect box = GetUpdateRegion().GetBox();
+
+      // Recreate the backing bitmap if we have a full refresh
+      // (See TrackPanel::Refresh())
+      if (mRefreshBacking || (box == GetRect()))
       {
-         // Reset
-         mResizeBacking = false;
+         // Reset (should a mutex be used???)
+         mRefreshBacking = false;
 
-         // Delete the backing bitmap
-         if (mBacking)
+         if (mResizeBacking)
          {
-            mBackingDC.SelectObject(wxNullBitmap);
-            delete mBacking;
-            mBacking = NULL;
+            // Reset
+            mResizeBacking = false;
+
+            // Delete the backing bitmap
+            if (mBacking)
+            {
+               mBackingDC.SelectObject(wxNullBitmap);
+               delete mBacking;
+               mBacking = NULL;
+            }
+
+            wxSize sz = GetClientSize();
+            mBacking = new wxBitmap();
+            mBacking->Create(sz.x, sz.y); //, *dc);
+            mBackingDC.SelectObject(*mBacking);
          }
 
-         wxSize sz = GetClientSize();
-         mBacking = new wxBitmap();
-         mBacking->Create(sz.x, sz.y); //, *dc);
-         mBackingDC.SelectObject(*mBacking);
+         // Redraw the backing bitmap
+         DrawTracks(&mBackingDC);
+
+         // Copy it to the display
+         dc.Blit(0, 0, mBacking->GetWidth(), mBacking->GetHeight(), &mBackingDC, 0, 0);
+      }
+      else
+      {
+         // Copy full, possibly clipped, damage rectangle
+         dc.Blit(box.x, box.y, box.width, box.height, &mBackingDC, box.x, box.y);
       }
 
-      // Redraw the backing bitmap
-      DrawTracks(&mBackingDC);
-
-      // Copy it to the display
-      dc->Blit(0, 0, mBacking->GetWidth(), mBacking->GetHeight(), &mBackingDC, 0, 0);
+      // Done with the clipped DC
    }
-   else
-   {
-      // Copy full, possibly clipped, damage rectangle
-      dc->Blit(box.x, box.y, box.width, box.height, &mBackingDC, box.x, box.y);
-   }
-
-   // Done with the clipped DC
-   delete dc;
 
    // Drawing now goes directly to the client area.  It can't use the paint DC
    // becuase the paint DC might be clipped and DrawOverlays() may need to draw
@@ -1492,10 +1492,15 @@ void TrackPanel::OnPaint(wxPaintEvent & /* event */)
 
 /// Makes our Parent (well, whoever is listening to us) push their state.
 /// this causes application state to be preserved on a stack for undo ops.
-void TrackPanel::MakeParentPushState(wxString desc, wxString shortDesc,
-                                     int flags)
+void TrackPanel::MakeParentPushState(const wxString &desc, const wxString &shortDesc,
+                                     UndoPush flags)
 {
    mListener->TP_PushState(desc, shortDesc, flags);
+}
+
+void TrackPanel::MakeParentPushState(const wxString &desc, const wxString &shortDesc)
+{
+   MakeParentPushState(desc, shortDesc, UndoPush::AUTOSAVE);
 }
 
 void TrackPanel::MakeParentModifyState(bool bWantsAutoSave)
@@ -2100,7 +2105,7 @@ void TrackPanel::HandleSelect(wxMouseEvent & event)
    if (event.LeftDown() ||
       (event.LeftDClick() && event.CmdDown())) {
       // AS: Now, did they click in a track somewhere?  If so, we want
-      //  to extend the current selection or start a new selection,
+      //  to extend the current selection or start a NEW selection,
       //  depending on the shift key.  If not, cancel all selections.
       if (t)
          SelectionHandleClick(event, t, rect);
@@ -2116,7 +2121,7 @@ void TrackPanel::HandleSelect(wxMouseEvent & event)
       }
 
       SetCapturedTrack( NULL );
-      //Send the new selection state to the undo/redo stack:
+      //Send the NEW selection state to the undo/redo stack:
       MakeParentModifyState(false);
 
 #ifdef EXPERIMENTAL_SPECTRAL_EDITING
@@ -2211,7 +2216,7 @@ void TrackPanel::StartOrJumpPlayback(wxMouseEvent &event)
          //to the clicked point.
          //This unpauses paused audio as well.  The right thing to do might be to
          //leave it paused but move the point.  This would probably
-         //require a new method in ControlToolBar: SetPause();
+         //require a NEW method in ControlToolBar: SetPause();
          ControlToolBar * ctb = p->GetControlToolBar();
          ctb->StopPlaying();
          ctb->PlayPlayRegion(SelectedRegion(clicktime, endtime), p->GetDefaultPlayOptions());
@@ -2490,7 +2495,7 @@ void TrackPanel::SelectionHandleClick(wxMouseEvent & event,
       }
    }
 
-   // We create a new snap manager in case any snap-points have changed
+   // We create a NEW snap manager in case any snap-points have changed
    if (mSnapManager)
       delete mSnapManager;
 
@@ -2754,7 +2759,7 @@ void TrackPanel::SelectionHandleClick(wxMouseEvent & event,
    }
 #endif
    if (startNewSelection) {
-      // If we didn't move a selection boundary, start a new selection
+      // If we didn't move a selection boundary, start a NEW selection
       SelectNone();
 #ifdef EXPERIMENTAL_SPECTRAL_EDITING
       StartFreqSelection (event.m_y, rect.y, rect.height, pTrack);
@@ -3208,7 +3213,7 @@ void TrackPanel::ResetFreqSelectionPin(double hintFrequency, bool logF)
 void TrackPanel::Stretch(int mouseXCoordinate, int trackLeftEdge,
                          Track *pTrack)
 {
-   if (mStretched) { // Undo stretch and redo it with new mouse coordinates
+   if (mStretched) { // Undo stretch and redo it with NEW mouse coordinates
       // Drag handling was not originally implemented with Undo in mind --
       // there are saved pointers to tracks that are not supposed to change.
       // Undo will change tracks, so convert pTrack, mCapturedTrack to index
@@ -3301,7 +3306,7 @@ void TrackPanel::Stretch(int mouseXCoordinate, int trackLeftEdge,
       break;
    }
    MakeParentPushState(_("Stretch Note Track"), _("Stretch"),
-      PUSH_CONSOLIDATE | PUSH_AUTOSAVE);
+      UndoPush::CONSOLIDATE | UndoPush::AUTOSAVE);
    mStretched = true;
    Refresh(false);
 }
@@ -3832,7 +3837,7 @@ void TrackPanel::HandleSlide(wxMouseEvent & event)
          consolidate = true;
       }
       MakeParentPushState(msg, _("Time-Shift"),
-         consolidate ? (PUSH_CONSOLIDATE) : (PUSH_AUTOSAVE));
+         consolidate ? (UndoPush::CONSOLIDATE) : (UndoPush::AUTOSAVE));
    }
 }
 
@@ -3969,7 +3974,7 @@ void TrackPanel::StartSlide(wxMouseEvent & event)
             if (mCapturedClipArray[i].clip) {
                // Iterate over sync-lock group tracks.
                SyncLockedTracksIterator git(mTracks);
-               for ( Track *t = git.First(mCapturedClipArray[i].track);
+               for (Track *t = git.StartWith(mCapturedClipArray[i].track);
                      t; t = git.Next() )
                {
                   AddClipsToCaptured(t,
@@ -3985,7 +3990,7 @@ void TrackPanel::StartSlide(wxMouseEvent & event)
             if (nt->GetKind() == Track::Note) {
                // Iterate over sync-lock group tracks.
                SyncLockedTracksIterator git(mTracks);
-               for (Track *t = git.First(nt); t; t = git.Next())
+               for (Track *t = git.StartWith(nt); t; t = git.Next())
                {
                   AddClipsToCaptured(t, nt->GetStartTime(), nt->GetEndTime());
                   if (t->GetKind() != Track::Wave)
@@ -4207,7 +4212,7 @@ void TrackPanel::DoSlide(wxMouseEvent & event)
                newClipRight = clipRight;
          }
 
-         // Take whichever one snapped (if any) and compute the new desiredSlideAmount
+         // Take whichever one snapped (if any) and compute the NEW desiredSlideAmount
          mSnapLeft = -1;
          mSnapRight = -1;
          if (newClipLeft != clipLeft) {
@@ -4394,7 +4399,7 @@ void TrackPanel::DoSlide(wxMouseEvent & event)
    }
 
    if (slidVertically) {
-      // new origin
+      // NEW origin
       mHSlideAmount = 0;
    }
 
@@ -4952,7 +4957,7 @@ float TrackPanel::FindSampleEditingLevel(wxMouseEvent &event, double dBRange, do
       else
          newLevel = 0;
 
-      //Make sure the new level is between +/-1
+      //Make sure the NEW level is between +/-1
       newLevel = std::max(-1.0f, std::min(1.0f, newLevel));
    }
 
@@ -5037,7 +5042,7 @@ void TrackPanel::HandleSampleEditingClick( wxMouseEvent & event )
       }
 
 
-      // Now that the new sample levels are determined, go through each and mix it appropriately
+      // Now that the NEW sample levels are determined, go through each and mix it appropriately
       // with the original point, according to a 2-part linear function whose center has probability
       // SMOOTHING_PROPORTION_MAX and extends out SMOOTHING_BRUSH_RADIUS, at which the probability is
       // SMOOTHING_PROPORTION_MIN.  _MIN and _MAX specify how much of the smoothed curve make it through.
@@ -5171,7 +5176,7 @@ void TrackPanel::HandleSampleEditingButtonUp( wxMouseEvent & WXUNUSED(event))
    mDrawingTrack=NULL;       //Set this to NULL so it will catch improper drag events.
    MakeParentPushState(_("Moved Samples"),
                        _("Sample Edit"),
-                       PUSH_CONSOLIDATE|PUSH_AUTOSAVE);
+                       UndoPush::CONSOLIDATE | UndoPush::AUTOSAVE);
 }
 
 
@@ -5179,7 +5184,7 @@ void TrackPanel::HandleSampleEditingButtonUp( wxMouseEvent & WXUNUSED(event))
 ///
 /// There are several member data structure for handling drawing:
 ///  - mDrawingTrack:               keeps track of which track you clicked down on, so drawing doesn't
-///                                 jump to a new track
+///                                 jump to a NEW track
 ///  - mDrawingTrackTop:            The top position of the drawing track--makes drawing easier.
 ///  - mDrawingStartSample:         The sample you clicked down on, so that you can hold it steady
 ///  - mDrawingLastDragSample:      When drag-drawing, this keeps track of the last sample you dragged over,
@@ -5421,7 +5426,7 @@ void TrackPanel::HandleSliders(wxMouseEvent &event, bool pan)
 #endif
       MakeParentPushState(pan ? _("Moved pan slider") : _("Moved gain slider"),
                           pan ? _("Pan") : _("Gain"),
-                          PUSH_CONSOLIDATE);
+                          UndoPush::CONSOLIDATE);
 #ifdef EXPERIMENTAL_MIDI_OUT
     } else {
       MakeParentPushState(_("Moved velocity slider"), _("Velocity"), true);
@@ -5524,7 +5529,7 @@ void TrackPanel::HandleLabelClick(wxMouseEvent & event)
       {
          wxRect midiRect;
 #ifdef EXPERIMENTAL_MIDI_OUT
-            // this is an awful hack: make a new rectangle at an offset because
+            // this is an awful hack: make a NEW rectangle at an offset because
             // MuteSoloFunc thinks buttons are located below some text, e.g.
             // "Mono, 44100Hz 32-bit float", but this is not true for a Note track
             wxRect muteSoloRect(rect);
@@ -6436,7 +6441,7 @@ void TrackPanel::OnKeyDown(wxKeyEvent & event)
    if (lt->OnKeyDown(mViewInfo->selectedRegion, event))
       MakeParentPushState(_("Modified Label"),
                           _("Label Edit"),
-                          PUSH_CONSOLIDATE);
+                          UndoPush::CONSOLIDATE);
 
    // Make sure caret is in view
    int x;
@@ -6480,7 +6485,7 @@ void TrackPanel::OnChar(wxKeyEvent & event)
    if (((LabelTrack *)t)->OnChar(mViewInfo->selectedRegion, event))
       MakeParentPushState(_("Modified Label"),
                           _("Label Edit"),
-                          PUSH_CONSOLIDATE);
+                          UndoPush::CONSOLIDATE);
 
    // If selection modified, refresh
    // Otherwise, refresh track display if the keystroke was handled
@@ -6650,11 +6655,12 @@ namespace {
    int FindMergeLine(WaveTrack *track, double time)
    {
       const double tolerance = 0.5 / track->GetRate();
-      for (int ii = 0, nn = track->GetNumCachedLocations(); ii < nn; ++ii) {
-         WaveTrack::Location loc = track->GetCachedLocation(ii);
+      int ii = 0;
+      for (const auto loc: track->GetCachedLocations()) {
          if (loc.typ == WaveTrackLocation::locationMergePoint &&
             fabs(time - loc.pos) < tolerance)
             return ii;
+         ++ii;
       }
       return -1;
    }
@@ -6726,13 +6732,13 @@ bool TrackPanel::HandleTrackLocationMouseEvent(WaveTrack * track, wxRect &rect, 
                // Don't assume correspondence of merge points across channels!
                int idx = FindMergeLine(linked, pos);
                if (idx >= 0) {
-                  WaveTrack::Location location = linked->GetCachedLocation(idx);
+                  WaveTrack::Location location = linked->GetCachedLocations()[idx];
                   if (!linked->MergeClips(location.clipidx1, location.clipidx2))
                      return false;
                }
             }
 
-            MakeParentPushState(_("Merged Clips"),_("Merge"), PUSH_CONSOLIDATE);
+            MakeParentPushState(_("Merged Clips"),_("Merge"), UndoPush::CONSOLIDATE);
             handled = true;
          }
       }
@@ -6765,10 +6771,8 @@ bool TrackPanel::HandleTrackLocationMouseEvent(WaveTrack * track, wxRect &rect, 
 
 bool TrackPanel::IsOverCutline(WaveTrack * track, wxRect &rect, wxMouseEvent &event)
 {
-   for (int i=0; i<track->GetNumCachedLocations(); i++)
+   for (auto loc: track->GetCachedLocations())
    {
-      WaveTrack::Location loc = track->GetCachedLocation(i);
-
       const double x = mViewInfo->TimeToPosition(loc.pos);
       if (x >= 0 && x < rect.width)
       {
@@ -6881,7 +6885,7 @@ void TrackPanel::HandleGlyphDragRelease(LabelTrack * lTrack, wxMouseEvent & even
       *mViewInfo, &mViewInfo->selectedRegion)) {
       MakeParentPushState(_("Modified Label"),
          _("Label Edit"),
-         PUSH_CONSOLIDATE);
+         UndoPush::CONSOLIDATE);
    }
 
    //If we are adjusting a label on a labeltrack, do not do anything
@@ -8810,7 +8814,7 @@ void TrackPanel::OnMergeStereo(wxCommandEvent & WXUNUSED(event))
       mPopupMenuTarget->SetChannel(Track::LeftChannel);
       partner->SetChannel(Track::RightChannel);
 
-      // Set new track heights and minimized state
+      // Set NEW track heights and minimized state
       bool bBothMinimizedp=((mPopupMenuTarget->GetMinimized())&&(partner->GetMinimized()));
       mPopupMenuTarget->SetMinimized(false);
       partner->SetMinimized(false);
@@ -8841,7 +8845,7 @@ void TrackPanel::OnMergeStereo(wxCommandEvent & WXUNUSED(event))
    Refresh(false);
 }
 
-class ViewSettingsDialog : public PrefsDialog
+class ViewSettingsDialog final : public PrefsDialog
 {
 public:
    ViewSettingsDialog
@@ -8852,12 +8856,12 @@ public:
    {
    }
 
-   virtual long GetPreferredPage()
+   long GetPreferredPage() override
    {
       return mPage;
    }
 
-   virtual void SavePreferredPage()
+   void SavePreferredPage() override
    {
    }
 
@@ -9351,13 +9355,13 @@ void TrackPanel::OnSetName(wxCommandEvent & WXUNUSED(event))
 // Small helper class to enumerate all fonts in the system
 // We use this because the default implementation of
 // wxFontEnumerator::GetFacenames() has changed between wx2.6 and 2.8
-class TrackPanelFontEnumerator : public wxFontEnumerator
+class TrackPanelFontEnumerator final : public wxFontEnumerator
 {
 public:
    TrackPanelFontEnumerator(wxArrayString* fontNames) :
       mFontNames(fontNames) {}
 
-   virtual bool OnFacename(const wxString& font)
+   bool OnFacename(const wxString& font) override
    {
       mFontNames->Add(font);
       return true;
@@ -9392,7 +9396,7 @@ void TrackPanel::OnSetFont(wxCommandEvent & WXUNUSED(event))
 
          /* i18n-hint: (noun) The name of the typeface*/
          S.AddPrompt(_("Face name"));
-         lb = new wxListBox(&dlg, wxID_ANY,
+         lb = safenew wxListBox(&dlg, wxID_ANY,
                             wxDefaultPosition,
                             wxDefaultSize,
                             facenames,
@@ -9404,7 +9408,7 @@ void TrackPanel::OnSetFont(wxCommandEvent & WXUNUSED(event))
 
          /* i18n-hint: (noun) The size of the typeface*/
          S.AddPrompt(_("Face size"));
-         sc = new wxSpinCtrl(&dlg, wxID_ANY,
+         sc = safenew wxSpinCtrl(&dlg, wxID_ANY,
                              wxString::Format(wxT("%ld"), fontsize),
                              wxDefaultPosition,
                              wxDefaultSize,
@@ -10065,7 +10069,8 @@ static TrackPanel * TrackPanelFactory(wxWindow * parent,
    TrackPanelListener * listener,
    AdornedRulerPanel * ruler)
 {
-   return new TrackPanel(
+   wxASSERT(parent); // to justify safenew
+   return safenew TrackPanel(
       parent,
       id,
       pos,

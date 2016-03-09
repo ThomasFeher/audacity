@@ -93,7 +93,7 @@ Lyrics::Lyrics(wxWindow* parent, wxWindowID id,
    this->SetBackgroundColour(*wxWHITE);
 
    mHighlightTextCtrl =
-      new HighlightTextCtrl(this, -1, // wxWindow* parent, wxWindowID id,
+      safenew HighlightTextCtrl(this, -1, // wxWindow* parent, wxWindowID id,
                               wxT(""), // const wxString& value = wxT(""),
                               wxPoint(0, 0), // const wxPoint& pos = wxDefaultPosition,
                               size); // const wxSize& size = wxDefaultSize
@@ -143,7 +143,7 @@ void Lyrics::AddLabels(const LabelTrack *pLT)
    mHighlightTextCtrl->AppendText(highlightText);
 }
 
-void Lyrics::Add(double t, wxString syllable, wxString &highlightText)
+void Lyrics::Add(double t, const wxString &syllable, wxString &highlightText)
 {
    int i = mSyllables.GetCount();
 

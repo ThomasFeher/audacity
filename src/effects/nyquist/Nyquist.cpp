@@ -114,7 +114,7 @@ BEGIN_EVENT_TABLE(NyquistEffect, wxEvtHandler)
                      wxEVT_COMMAND_CHOICE_SELECTED, NyquistEffect::OnChoice)
 END_EVENT_TABLE()
 
-NyquistEffect::NyquistEffect(wxString fName)
+NyquistEffect::NyquistEffect(const wxString &fName)
 {
    mAction = _("Applying Nyquist Effect...");
    mInputCmd = wxEmptyString;
@@ -616,7 +616,7 @@ bool NyquistEffect::Process()
 
          // Check whether we're in the same group as the last selected track
          SyncLockedTracksIterator gIter(mOutputTracks);
-         Track *gt = gIter.First(mCurTrack[0]);
+         Track *gt = gIter.StartWith(mCurTrack[0]);
          mFirstInGroup = !gtLast || (gtLast != gt);
          gtLast = gt;
 
@@ -1228,7 +1228,7 @@ bool NyquistEffect::ProcessOne()
       if (mFirstInGroup) {
          SyncLockedTracksIterator git(mOutputTracks);
          Track *t;
-         for (t = git.First(mCurTrack[i]); t; t = git.Next())
+         for (t = git.StartWith(mCurTrack[i]); t; t = git.Next())
          {
             if (!t->GetSelected() && t->IsSyncLockSelected()) {
                t->SyncLockAdjust(mT1, mT0 + out->GetEndTime());
@@ -1290,7 +1290,7 @@ void NyquistEffect::RedirectOutput()
    mRedirectOutput = true;
 }
 
-void NyquistEffect::SetCommand(wxString cmd)
+void NyquistEffect::SetCommand(const wxString &cmd)
 {
    mExternal = true;
 
@@ -1312,7 +1312,7 @@ void NyquistEffect::Stop()
    mStop = true;
 }
 
-wxString NyquistEffect::UnQuote(wxString s)
+wxString NyquistEffect::UnQuote(const wxString &s)
 {
    wxString out;
    int len = s.Length();
@@ -1324,7 +1324,7 @@ wxString NyquistEffect::UnQuote(wxString s)
    return s;
 }
 
-double NyquistEffect::GetCtrlValue(wxString s)
+double NyquistEffect::GetCtrlValue(const wxString &s)
 {
    /* For this to work correctly requires that the plug-in header is
     * parsed on each run so that the correct value for "half-srate" may
@@ -1341,10 +1341,10 @@ double NyquistEffect::GetCtrlValue(wxString s)
    }
    */
 
-   return Internat::CompatibleToDouble(s);;
+   return Internat::CompatibleToDouble(s);
 }
 
-void NyquistEffect::Parse(wxString line)
+void NyquistEffect::Parse(const wxString &line)
 {
    wxArrayString tokens;
 
@@ -2237,38 +2237,44 @@ END_EVENT_TABLE()
 NyquistOutputDialog::NyquistOutputDialog(wxWindow * parent, wxWindowID id,
                                        const wxString & title,
                                        const wxString & prompt,
-                                       wxString message)
+                                       const wxString &message)
 :  wxDialog(parent, id, title)
 {
    SetName(GetTitle());
 
-   wxBoxSizer *mainSizer = new wxBoxSizer(wxVERTICAL);
-   wxBoxSizer *hSizer;
-   wxButton   *button;
-   wxControl  *item;
+   wxBoxSizer *mainSizer;
+   {
+      auto uMainSizer = std::make_unique<wxBoxSizer>(wxVERTICAL);
+      mainSizer = uMainSizer.get();
+      wxButton   *button;
+      wxControl  *item;
 
-   item = new wxStaticText(this, -1, prompt);
-   item->SetName(prompt);  // fix for bug 577 (NVDA/Narrator screen readers do not read static text in dialogs)
-   mainSizer->Add(item, 0, wxALIGN_LEFT | wxLEFT | wxTOP | wxRIGHT, 10);
+      item = safenew wxStaticText(this, -1, prompt);
+      item->SetName(prompt);  // fix for bug 577 (NVDA/Narrator screen readers do not read static text in dialogs)
+      mainSizer->Add(item, 0, wxALIGN_LEFT | wxLEFT | wxTOP | wxRIGHT, 10);
 
-   // TODO use ShowInfoDialog() instead.
-   // Beware this dialog MUST work with screen readers.
-   item = new wxTextCtrl(this, -1, message,
-                         wxDefaultPosition, wxSize(400, 200),
-                         wxTE_MULTILINE | wxTE_READONLY);
-   mainSizer->Add(item, 0, wxALIGN_LEFT | wxALL, 10);
+      // TODO use ShowInfoDialog() instead.
+      // Beware this dialog MUST work with screen readers.
+      item = safenew wxTextCtrl(this, -1, message,
+         wxDefaultPosition, wxSize(400, 200),
+         wxTE_MULTILINE | wxTE_READONLY);
+      mainSizer->Add(item, 0, wxALIGN_LEFT | wxALL, 10);
 
-   hSizer = new wxBoxSizer(wxHORIZONTAL);
+      {
+         auto hSizer = std::make_unique<wxBoxSizer>(wxHORIZONTAL);
 
-   /* i18n-hint: In most languages OK is to be translated as OK.  It appears on a button.*/
-   button = new wxButton(this, wxID_OK, _("OK"));
-   button->SetDefault();
-   hSizer->Add(button, 0, wxALIGN_CENTRE | wxALL, 5);
+         /* i18n-hint: In most languages OK is to be translated as OK.  It appears on a button.*/
+         button = safenew wxButton(this, wxID_OK, _("OK"));
+         button->SetDefault();
+         hSizer->Add(button, 0, wxALIGN_CENTRE | wxALL, 5);
 
-   mainSizer->Add(hSizer, 0, wxALIGN_CENTRE | wxLEFT | wxBOTTOM | wxRIGHT, 5);
+         mainSizer->Add(hSizer.release(), 0, wxALIGN_CENTRE | wxLEFT | wxBOTTOM | wxRIGHT, 5);
+      }
 
-   SetAutoLayout(true);
-   SetSizer(mainSizer);
+      SetAutoLayout(true);
+      SetSizer(uMainSizer.release());
+   }
+
    mainSizer->Fit(this);
    mainSizer->SetSizeHints(this);
 }

@@ -48,13 +48,14 @@ enum ProgressDialogFlags
 /// ProgressDialog Class
 ////////////////////////////////////////////////////////////
 
-class AUDACITY_DLL_API ProgressDialog:public wxDialog
+class AUDACITY_DLL_API ProgressDialog /* not final */ : public wxDialog
 {
 public:
    ProgressDialog();
    ProgressDialog(const wxString & title, const wxString & message = wxEmptyString, int flags = pdlgDefaultFlags);
    virtual ~ProgressDialog();
 
+   // NEW virtual?  It doesn't override wxDialog
    virtual bool Create(const wxString & title, const wxString & message = wxEmptyString, int flags = pdlgDefaultFlags);
 
    int Update(int value, const wxString & message = wxEmptyString);
@@ -103,7 +104,7 @@ private:
    DECLARE_EVENT_TABLE();
 };
 
-class AUDACITY_DLL_API TimerProgressDialog : public ProgressDialog
+class AUDACITY_DLL_API TimerProgressDialog final : public ProgressDialog
 {
 public:
    TimerProgressDialog(const wxLongLong_t duration,

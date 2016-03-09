@@ -108,7 +108,7 @@ void TracksPrefs::PopulateOrExchange(ShuttleGui & S)
       }
       S.EndMultiColumn();
 
-      S.TieCheckBox(_("Sho&w track name in waveform display"),
+      S.TieCheckBox(_("Sho&w audio track name as overlay"),
                   wxT("/GUI/ShowTrackNameInWaveform"),
                   false);
    }
@@ -164,5 +164,6 @@ bool TracksPrefs::Apply()
 
 PrefsPanel *TracksPrefsFactory::Create(wxWindow *parent)
 {
-   return new TracksPrefs(parent);
+   wxASSERT(parent); // to justify safenew
+   return safenew TracksPrefs(parent);
 }

@@ -79,7 +79,7 @@ class AUDACITY_DLL_API Ruler {
 
    // Specify the name of the units (like "dB") if you
    // want numbers like "1.6" formatted as "1.6 dB".
-   void SetUnits(wxString units);
+   void SetUnits(const wxString &units);
 
    // Logarithmic
    void SetLog(bool log);
@@ -136,7 +136,7 @@ class AUDACITY_DLL_API Ruler {
 
    // Note that it will not erase for you...
    void Draw(wxDC& dc);
-   void Draw(wxDC& dc, TimeTrack* timetrack);
+   void Draw(wxDC& dc, const TimeTrack* timetrack);
    // If length <> 0, draws lines perpendiculars to ruler corresponding
    // to selected ticks (major, minor, or both), in an adjacent window.
    // You may need to use the offsets if you are using part of the dc for rulers, borders etc.
@@ -151,7 +151,7 @@ class AUDACITY_DLL_API Ruler {
 
  private:
    void Update();
-   void Update(TimeTrack* timetrack);
+   void Update(const TimeTrack* timetrack);
    void FindTickSizes();
    void FindLinearTickSizes(double UPP);
    wxString LabelString(double d, bool major);
@@ -238,7 +238,7 @@ private:
    NumberScale *mpNumberScale;
 };
 
-class AUDACITY_DLL_API RulerPanel : public wxPanel {
+class AUDACITY_DLL_API RulerPanel final : public wxPanel {
    DECLARE_DYNAMIC_CLASS(RulerPanel)
 
  public:
@@ -274,7 +274,7 @@ private:
 // Once TrackPanel uses wxSizers, we will derive it from some
 // wxWindow and the GetSize and SetSize functions
 // will then be wxWidgets functions instead.
-class AUDACITY_DLL_API AdornedRulerPanel : public wxPanel
+class AUDACITY_DLL_API AdornedRulerPanel final : public wxPanel
 {
 public:
    AdornedRulerPanel(AudacityProject* parent,
@@ -285,7 +285,7 @@ public:
 
    ~AdornedRulerPanel();
 
-   virtual bool AcceptsFocus() const { return false; };
+   bool AcceptsFocus() const override { return false; };
 
 public:
    static int GetRulerHeight() { return 28; }
@@ -320,7 +320,7 @@ private:
    void DoDrawCursor(wxDC * dc);
    void DoDrawSelection(wxDC * dc);
    void DoDrawIndicator(wxDC * dc);
-   void DrawQuickPlayIndicator(wxDC * dc /*NULL to delete old only*/);
+   void DrawQuickPlayIndicator(wxDC * dc /*NULL to DELETE old only*/);
    void DoDrawPlayRegion(wxDC * dc);
 
    double Pos2Time(int p, bool ignoreFisheye = false);

@@ -83,7 +83,7 @@ public:
    WaveTrack *outputRightTrack;
 };
 
-class SBSMSEffectInterface : public SBSMSInterfaceSliding {
+class SBSMSEffectInterface final : public SBSMSInterfaceSliding {
 public:
    SBSMSEffectInterface(Resampler *resampler,
                         Slide *rateSlide, Slide *pitchSlide,
@@ -416,6 +416,7 @@ bool EffectSBSMS::Process()
                leftTrack->ClearAndPaste(mCurT0, mCurT1, rb.outputLeftTrack,
                                           true, false, GetTimeWarper());
             wxASSERT(bResult); // TO DO: Actually handle this.
+            wxUnusedVar(bResult);
 
             if(rightTrack)
             {

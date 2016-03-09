@@ -22,15 +22,15 @@
 
 // Import
 
-class ImportCommandType : public CommandType
+class ImportCommandType final : public CommandType
 {
 public:
-   virtual wxString BuildName();
-   virtual void BuildSignature(CommandSignature &signature);
-   virtual Command *Create(CommandOutputTarget *target);
+   wxString BuildName() override;
+   void BuildSignature(CommandSignature &signature) override;
+   Command *Create(CommandOutputTarget *target) override;
 };
 
-class ImportCommand : public CommandImplementation
+class ImportCommand final : public CommandImplementation
 {
 public:
    ImportCommand(CommandType &type,
@@ -39,20 +39,20 @@ public:
    { }
 
    virtual ~ImportCommand();
-   virtual bool Apply(CommandExecutionContext context);
+   bool Apply(CommandExecutionContext context) override;
 };
 
 // Export
 
-class ExportCommandType : public CommandType
+class ExportCommandType final : public CommandType
 {
 public:
-   virtual wxString BuildName();
-   virtual void BuildSignature(CommandSignature &signature);
-   virtual Command *Create(CommandOutputTarget *target);
+   wxString BuildName() override;
+   void BuildSignature(CommandSignature &signature) override;
+   Command *Create(CommandOutputTarget *target) override;
 };
 
-class ExportCommand : public CommandImplementation
+class ExportCommand final : public CommandImplementation
 {
 public:
    ExportCommand(CommandType &type,
@@ -61,5 +61,5 @@ public:
    { }
 
    virtual ~ExportCommand();
-   virtual bool Apply(CommandExecutionContext context);
+   bool Apply(CommandExecutionContext context) override;
 };

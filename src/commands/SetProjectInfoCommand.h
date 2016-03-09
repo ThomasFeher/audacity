@@ -23,16 +23,16 @@
 class Track;
 class TrackList;
 
-class SetProjectInfoCommandType : public CommandType
+class SetProjectInfoCommandType final : public CommandType
 {
 public:
-   virtual wxString BuildName();
-   virtual void BuildSignature(CommandSignature &signature);
-   virtual Command *Create(CommandOutputTarget *target);
+   wxString BuildName() override;
+   void BuildSignature(CommandSignature &signature) override;
+   Command *Create(CommandOutputTarget *target) override;
 };
 
 
-class SetProjectInfoCommand : public CommandImplementation
+class SetProjectInfoCommand final : public CommandImplementation
 {
 public:
    SetProjectInfoCommand(CommandType &type, CommandOutputTarget *target)
@@ -41,14 +41,14 @@ public:
    virtual ~SetProjectInfoCommand()
    { }
 
-   virtual bool Apply(CommandExecutionContext context);
+   bool Apply(CommandExecutionContext context) override;
 
 private:
 // Function pointer to set a particular Track parameter
    typedef void (SetProjectInfoCommand::*Setter)(Track *trk, bool setting) const;
 
 // Uses the Function pointer to set a particular parameter within a loop of otherwise duplicate code
-   void SetAllTracksParam(TrackList *projTracks, wxString boolValueStr, Setter functPtrToSetter);
+   void SetAllTracksParam(TrackList *projTracks, const wxString &boolValueStr, Setter functPtrToSetter);
 
 // Function pointer to accessing a particular parameter within a loop of otherwise duplicate code
    void setSelected(Track *trk, bool setting) const;

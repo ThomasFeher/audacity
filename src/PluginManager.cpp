@@ -59,7 +59,7 @@ WX_DECLARE_STRING_HASH_MAP(wxArrayString, ProviderMap);
 // ============================================================================
 #if wxUSE_ACCESSIBILITY
 
-class CheckListAx: public wxWindowAccessible
+class CheckListAx final : public wxWindowAccessible
 {
 public:
    CheckListAx(wxListCtrl * window);
@@ -68,10 +68,10 @@ public:
 
    // Retrieves the address of an IDispatch interface for the specified child.
    // All objects must support this property.
-   virtual wxAccStatus GetChild( int childId, wxAccessible **child );
+   wxAccStatus GetChild( int childId, wxAccessible **child ) override;
 
    // Gets the number of children.
-   virtual wxAccStatus GetChildCount( int *childCount );
+   wxAccStatus GetChildCount( int *childCount ) override;
 
    // Gets the default action for this object (0) or > 0 (the action for a child).
    // Return wxACC_OK even if there is no action. actionName is the action, or the empty
@@ -79,33 +79,33 @@ public:
    // The retrieved string describes the action that is performed on an object,
    // not what the object does as a result. For example, a toolbar button that prints
    // a document has a default action of "Press" rather than "Prints the current document."
-   virtual wxAccStatus GetDefaultAction( int childId, wxString *actionName );
+   wxAccStatus GetDefaultAction( int childId, wxString *actionName ) override;
 
    // Returns the description for this object or a child.
-   virtual wxAccStatus GetDescription( int childId, wxString *description );
+   wxAccStatus GetDescription( int childId, wxString *description ) override;
 
    // Gets the window with the keyboard focus.
    // If childId is 0 and child is NULL, no object in
    // this subhierarchy has the focus.
    // If this object has the focus, child should be 'this'.
-   virtual wxAccStatus GetFocus( int *childId, wxAccessible **child );
+   wxAccStatus GetFocus( int *childId, wxAccessible **child ) override;
 
    // Returns help text for this object or a child, similar to tooltip text.
-   virtual wxAccStatus GetHelpText( int childId, wxString *helpText );
+   wxAccStatus GetHelpText( int childId, wxString *helpText ) override;
 
    // Returns the keyboard shortcut for this object or child.
    // Return e.g. ALT+K
-   virtual wxAccStatus GetKeyboardShortcut( int childId, wxString *shortcut );
+   wxAccStatus GetKeyboardShortcut( int childId, wxString *shortcut ) override;
 
    // Returns the rectangle for this object (id = 0) or a child element (id > 0).
    // rect is in screen coordinates.
-   virtual wxAccStatus GetLocation( wxRect& rect, int elementId );
+   wxAccStatus GetLocation( wxRect& rect, int elementId ) override;
 
    // Gets the name of the specified object.
-   virtual wxAccStatus GetName( int childId, wxString *name );
+   wxAccStatus GetName( int childId, wxString *name ) override;
 
    // Returns a role constant.
-   virtual wxAccStatus GetRole( int childId, wxAccRole *role );
+   wxAccStatus GetRole( int childId, wxAccRole *role ) override;
 
    // Gets a variant representing the selected children
    // of this object.
@@ -115,14 +115,14 @@ public:
    // - an integer representing the selected child element,
    //   or 0 if this object is selected (GetType() == wxT("long"))
    // - a "void*" pointer to a wxAccessible child object
-   virtual wxAccStatus GetSelections( wxVariant *selections );
+   wxAccStatus GetSelections( wxVariant *selections ) override;
 
    // Returns a state constant.
-   virtual wxAccStatus GetState( int childId, long* state );
+   wxAccStatus GetState( int childId, long* state ) override;
 
    // Returns a localized string representing the value for the object
    // or child.
-   virtual wxAccStatus GetValue( int childId, wxString *strValue );
+   wxAccStatus GetValue( int childId, wxString *strValue ) override;
 
    void SetSelected( int item, bool focused = true );
 
@@ -414,7 +414,7 @@ enum
    COL_COUNT
 };
 
-class PluginRegistrationDialog : public wxDialog
+class PluginRegistrationDialog final : public wxDialog
 {
 public:
    // constructors and destructors
@@ -621,7 +621,7 @@ void PluginRegistrationDialog::PopulateOrExchange(ShuttleGui &S)
       }
 
       wxString path = plug.GetPath();
-      ItemData & item = mItems[path];  // will create new entry
+      ItemData & item = mItems[path];  // will create NEW entry
       item.plugs.Add(&plug);
       item.path = path;
       item.state = plug.IsEnabled() ? STATE_Enabled : STATE_Disabled;
@@ -969,57 +969,57 @@ void PluginRegistrationDialog::OnOK(wxCommandEvent & WXUNUSED(evt))
    // Make sure the progress dialog is deleted before we call EndModal() or
    // we will leave the project window in an unusable state on OSX.
    // See bug #1192.
-   ProgressDialog *progress = new ProgressDialog(GetTitle(), msg, pdlgHideStopButton);
-   progress->CenterOnParent();
-
-   int i = 0;
-   for (ItemDataMap::iterator iter = mItems.begin(); iter != mItems.end(); ++iter)
    {
-      ItemData & item = iter->second;
-      wxString path = item.path;
+      ProgressDialog progress(GetTitle(), msg, pdlgHideStopButton);
+      progress.CenterOnParent();
 
-      if (item.state == STATE_Enabled && item.plugs[0]->GetPluginType() == PluginTypeStub)
+      int i = 0;
+      for (ItemDataMap::iterator iter = mItems.begin(); iter != mItems.end(); ++iter)
       {
-         last3 = last3.AfterFirst(wxT('\n')) + item.path + wxT("\n");
-         int status = progress->Update(++i, enableCount, wxString::Format(_("Enabling effect:\n\n%s"), last3.c_str()));
-         if (!status)
-         {
-            break;
-         }
+         ItemData & item = iter->second;
+         wxString path = item.path;
 
-         // Try to register the plugin via each provider until one succeeds
-         for (size_t j = 0, cnt = item.plugs.GetCount(); j < cnt; j++)
+         if (item.state == STATE_Enabled && item.plugs[0]->GetPluginType() == PluginTypeStub)
          {
-            if (mm.RegisterPlugin(item.plugs[j]->GetProviderID(), path))
+            last3 = last3.AfterFirst(wxT('\n')) + item.path + wxT("\n");
+            int status = progress.Update(++i, enableCount, wxString::Format(_("Enabling effect:\n\n%s"), last3.c_str()));
+            if (!status)
             {
-               for (size_t j = 0, cnt = item.plugs.GetCount(); j < cnt; j++)
-               {
-                  pm.mPlugins.erase(item.plugs[j]->GetProviderID() + wxT("_") + path);
-               }
                break;
+            }
+
+            // Try to register the plugin via each provider until one succeeds
+            for (size_t j = 0, cnt = item.plugs.GetCount(); j < cnt; j++)
+            {
+               if (mm.RegisterPlugin(item.plugs[j]->GetProviderID(), path))
+               {
+                  for (size_t j = 0, cnt = item.plugs.GetCount(); j < cnt; j++)
+                  {
+                     pm.mPlugins.erase(item.plugs[j]->GetProviderID() + wxT("_") + path);
+                  }
+                  break;
+               }
+            }
+         }
+         else if (item.state == STATE_New)
+         {
+            for (size_t j = 0, cnt = item.plugs.GetCount(); j < cnt; j++)
+            {
+               item.plugs[j]->SetValid(false);
+            }
+         }
+         else if (item.state != STATE_New)
+         {
+            for (size_t j = 0, cnt = item.plugs.GetCount(); j < cnt; j++)
+            {
+               item.plugs[j]->SetEnabled(item.state == STATE_Enabled);
+               item.plugs[j]->SetValid(item.valid);
             }
          }
       }
-      else if (item.state == STATE_New)
-      {
-         for (size_t j = 0, cnt = item.plugs.GetCount(); j < cnt; j++)
-         {
-            item.plugs[j]->SetValid(false);
-         }
-      }
-      else if (item.state != STATE_New)
-      {
-         for (size_t j = 0, cnt = item.plugs.GetCount(); j < cnt; j++)
-         {
-            item.plugs[j]->SetEnabled(item.state == STATE_Enabled);
-            item.plugs[j]->SetValid(item.valid);
-         }
-      }
+
+      pm.Save();
    }
-
-   pm.Save();
-
-   delete progress;
 
    EndModal(wxID_OK);
 }
@@ -2138,9 +2138,9 @@ void PluginManager::CheckForUpdates()
       pathIndex.Add(plug.GetPath().BeforeFirst(wxT(';')));
    }
 
-   // Check all known plugins to ensure they are still valid and scan for new ones.
+   // Check all known plugins to ensure they are still valid and scan for NEW ones.
    // 
-   // All new plugins get a stub entry created that will remain in place until the
+   // All NEW plugins get a stub entry created that will remain in place until the
    // user enables or disables the plugin.
    //
    // Becuase we use the plugins "path" as returned by the providers, we can actually
@@ -2179,7 +2179,7 @@ void PluginManager::CheckForUpdates()
                if (pathIndex.Index(path) == wxNOT_FOUND)
                {
                   PluginID ID = plugID + wxT("_") + path;
-                  PluginDescriptor & plug = mPlugins[ID];  // This will create a new descriptor
+                  PluginDescriptor & plug = mPlugins[ID];  // This will create a NEW descriptor
                   plug.SetPluginType(PluginTypeStub);
                   plug.SetID(ID);
                   plug.SetProviderID(plugID);
@@ -2483,7 +2483,7 @@ PluginDescriptor & PluginManager::CreatePlugin(const PluginID & id,
                                                IdentInterface *ident,
                                                PluginType type)
 {
-   // This will either create a new entry or replace an existing entry
+   // This will either create a NEW entry or replace an existing entry
    PluginDescriptor & plug = mPlugins[id];
 
    plug.SetPluginType(type);
@@ -2896,7 +2896,7 @@ wxString PluginManager::b64encode(const void *in, int len)
    return out;
 }
 
-int PluginManager::b64decode(wxString in, void *out)
+int PluginManager::b64decode(const wxString &in, void *out)
 {
    int len = in.length();
    unsigned char *p = (unsigned char *) out;

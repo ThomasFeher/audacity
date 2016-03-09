@@ -80,7 +80,7 @@ void GetOGGImportPlugin(ImportPluginList *importPluginList,
 #include "../WaveTrack.h"
 #include "ImportPlugin.h"
 
-class OggImportPlugin : public ImportPlugin
+class OggImportPlugin final : public ImportPlugin
 {
 public:
    OggImportPlugin()
@@ -92,11 +92,11 @@ public:
 
    wxString GetPluginStringID() { return wxT("liboggvorbis"); }
    wxString GetPluginFormatDescription();
-   ImportFileHandle *Open(wxString Filename);
+   ImportFileHandle *Open(const wxString &Filename) override;
 };
 
 
-class OggImportFileHandle : public ImportFileHandle
+class OggImportFileHandle final : public ImportFileHandle
 {
 public:
    OggImportFileHandle(const wxString & filename,
@@ -171,8 +171,14 @@ wxString OggImportPlugin::GetPluginFormatDescription()
     return DESC;
 }
 
-ImportFileHandle *OggImportPlugin::Open(wxString filename)
+ImportFileHandle *OggImportPlugin::Open(const wxString &filename)
 {
+   // Suppress some compiler warnings about unused global variables in the library header
+   wxUnusedVar(OV_CALLBACKS_DEFAULT);
+   wxUnusedVar(OV_CALLBACKS_NOCLOSE);
+   wxUnusedVar(OV_CALLBACKS_STREAMONLY);
+   wxUnusedVar(OV_CALLBACKS_STREAMONLY_NOCLOSE);
+
    OggVorbis_File *vorbisFile = new OggVorbis_File;
    wxFFile *file = new wxFFile(filename, wxT("rb"));
 

@@ -40,7 +40,7 @@ WX_DECLARE_OBJARRAY(Syllable, SyllableArray);
 class Lyrics;
 
 // Override wxTextCtrl to handle selection events, which the parent ignores if the control is read-only.
-class HighlightTextCtrl : public wxTextCtrl
+class HighlightTextCtrl final : public wxTextCtrl
 {
 public:
    HighlightTextCtrl(Lyrics* parent,
@@ -58,7 +58,7 @@ private:
    DECLARE_EVENT_TABLE()
 };
 
-class Lyrics : public wxPanel
+class Lyrics final : public wxPanel
 {
    DECLARE_DYNAMIC_CLASS(Lyrics)
 
@@ -105,7 +105,7 @@ class Lyrics : public wxPanel
    void HandleLayout();
 
 private:
-   void Add(double t, wxString syllable, wxString &highlightText);
+   void Add(double t, const wxString &syllable, wxString &highlightText);
 
    unsigned int GetDefaultFontSize() const; // Depends on mLyricsStyle. Call only after mLyricsStyle is set.
 

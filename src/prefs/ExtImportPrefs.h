@@ -26,7 +26,7 @@ class wxListEvent;
 class ExtImportPrefs;
 class ShuttleGui;
 
-class ExtImportPrefsDropTarget: public wxDropTarget
+class ExtImportPrefsDropTarget final : public wxDropTarget
 {
 public:
    ExtImportPrefsDropTarget (wxDataObject *dataObject = 0);
@@ -42,12 +42,12 @@ private:
    ExtImportPrefs *mPrefs;
 };
 
-class ExtImportPrefs:public PrefsPanel
+class ExtImportPrefs final : public PrefsPanel
 {
  public:
    ExtImportPrefs(wxWindow * parent);
    ~ExtImportPrefs();
-   virtual bool Apply();
+   bool Apply() override;
 
    void OnPluginKeyDown(wxListEvent& event);
    void OnPluginBeginDrag(wxListEvent& event);
@@ -108,9 +108,9 @@ class ExtImportPrefs:public PrefsPanel
 };
 
 
-class ExtImportPrefsFactory : public PrefsPanelFactory
+class ExtImportPrefsFactory final : public PrefsPanelFactory
 {
 public:
-   virtual PrefsPanel *Create(wxWindow *parent);
+   PrefsPanel *Create(wxWindow *parent) override;
 };
 #endif

@@ -36,7 +36,7 @@ default is to disable caching.
   memory, so they are never read from disk in the current session.
 
 * Write-caching: If caching is enabled and the parameter allowDeferredWrite
-  is enabled at the block file constructor, new block files are held in memory
+  is enabled at the block file constructor, NEW block files are held in memory
   and written to disk only when WriteCacheToDisk() is called. This is used
   during recording to prevent disk access. After recording, WriteCacheToDisk()
   will be called on all block files and they will be written to disk. During
@@ -70,6 +70,7 @@ to get its definition, rather than rolling our own.
 
 #include "sndfile.h"
 #include "../Internat.h"
+#include "../MemoryX.h"
 
 
 static wxUint32 SwapUintEndianess(wxUint32 in)
@@ -111,6 +112,7 @@ SimpleBlockFile::SimpleBlockFile(wxFileName baseFileName,
    {
       bool bSuccess = WriteSimpleBlockFile(sampleData, sampleLen, format, NULL);
       wxASSERT(bSuccess); // TODO: Handle failure here by alert to user and undo partial op.
+      wxUnusedVar(bSuccess);
    }
 
    if (useCache) {
@@ -345,21 +347,21 @@ bool SimpleBlockFile::ReadSummary(void *data)
 
       wxFFile file(mFileName.GetFullPath(), wxT("rb"));
 
-      wxLogNull *silence=0;
-      if(mSilentLog)silence= new wxLogNull();
+      {
+         Maybe<wxLogNull> silence{};
+         if (mSilentLog)
+            silence.create();
 
-      if(!file.IsOpened() ){
+         if (!file.IsOpened()){
 
-         memset(data,0,(size_t)mSummaryInfo.totalSummaryBytes);
+            memset(data, 0, (size_t)mSummaryInfo.totalSummaryBytes);
 
-         if(silence) delete silence;
-         mSilentLog=TRUE;
+            mSilentLog = TRUE;
 
-         return true;
+            return true;
 
+         }
       }
-
-      if(silence) delete silence;
       mSilentLog=FALSE;
 
       // The offset is just past the au header
@@ -400,35 +402,35 @@ int SimpleBlockFile::ReadData(samplePtr data, sampleFormat format,
       //wxLogDebug("SimpleBlockFile::ReadData(): Reading data from disk.");
 
       SF_INFO info;
-      wxLogNull *silence=0;
-      if(mSilentLog)silence= new wxLogNull();
-
-      memset(&info, 0, sizeof(info));
-
       wxFile f;   // will be closed when it goes out of scope
       SNDFILE *sf = NULL;
+      {
+         Maybe<wxLogNull> silence{};
+         if (mSilentLog)
+            silence.create();
 
-      if (f.Open(mFileName.GetFullPath())) {
-         // Even though there is an sf_open() that takes a filename, use the one that
-         // takes a file descriptor since wxWidgets can open a file with a Unicode name and
-         // libsndfile can't (under Windows).
-         sf = sf_open_fd(f.fd(), SFM_READ, &info, FALSE);
+         memset(&info, 0, sizeof(info));
+
+         if (f.Open(mFileName.GetFullPath())) {
+            // Even though there is an sf_open() that takes a filename, use the one that
+            // takes a file descriptor since wxWidgets can open a file with a Unicode name and
+            // libsndfile can't (under Windows).
+            sf = sf_open_fd(f.fd(), SFM_READ, &info, FALSE);
+         }
+
+         if (!sf) {
+
+            memset(data, 0, SAMPLE_SIZE(format)*len);
+
+            mSilentLog = TRUE;
+
+            return len;
+         }
       }
-
-      if (!sf) {
-
-         memset(data,0,SAMPLE_SIZE(format)*len);
-
-         if(silence) delete silence;
-         mSilentLog=TRUE;
-
-         return len;
-      }
-      if(silence) delete silence;
       mSilentLog=FALSE;
 
       sf_seek(sf, start, SEEK_SET);
-      samplePtr buffer = NewSamples(len, floatSample);
+      SampleBuffer buffer(len, floatSample);
 
       int framesRead = 0;
 
@@ -456,12 +458,10 @@ int SimpleBlockFile::ReadData(samplePtr data, sampleFormat format,
          // Otherwise, let libsndfile handle the conversion and
          // scaling, and pass us normalized data as floats.  We can
          // then convert to whatever format we want.
-         framesRead = sf_readf_float(sf, (float *)buffer, len);
-         CopySamples(buffer, floatSample,
+         framesRead = sf_readf_float(sf, (float *)buffer.ptr(), len);
+         CopySamples(buffer.ptr(), floatSample,
                      (samplePtr)data, format, framesRead);
       }
-
-      DeleteSamples(buffer);
 
       sf_close(sf);
 
@@ -531,7 +531,7 @@ BlockFile *SimpleBlockFile::BuildFromXML(DirManager &dm, const wxChar **attrs)
 
 /// Create a copy of this BlockFile, but using a different disk file.
 ///
-/// @param newFileName The name of the new file to use.
+/// @param newFileName The name of the NEW file to use.
 BlockFile *SimpleBlockFile::Copy(wxFileName newFileName)
 {
    BlockFile *newBlockFile = new SimpleBlockFile(newFileName, mLen,

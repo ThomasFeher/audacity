@@ -38,7 +38,7 @@ class SummaryInfo {
 
 
 
-class BlockFile {
+class PROFILE_DLL_API BlockFile /* not final, abstract */ {
  public:
 
    // Constructor / Destructor
@@ -106,7 +106,7 @@ class BlockFile {
    /// Returns TRUE if the summary has not yet been written, but is actively being computed and written to disk
    virtual bool IsSummaryBeingComputed(){return false;}
 
-   /// Create a new BlockFile identical to this, using the given filename
+   /// Create a NEW BlockFile identical to this, using the given filename
    virtual BlockFile *Copy(wxFileName newFileName) = 0;
 
    virtual wxLongLong GetSpaceUsage() = 0;
@@ -178,7 +178,7 @@ class BlockFile {
 /// This is a common base class for all alias block files.  It handles
 /// reading and writing summary data, leaving very little for derived
 /// classes to need to implement.
-class AliasBlockFile : public BlockFile
+class AliasBlockFile /* not final */ : public BlockFile
 {
  public:
 
@@ -196,11 +196,7 @@ class AliasBlockFile : public BlockFile
 
    // Reading
 
-   /// Retrieves audio data from the aliased file.
-   virtual int ReadData(samplePtr data, sampleFormat format,
-                        sampleCount start, sampleCount len) = 0;
-
-   virtual wxLongLong GetSpaceUsage();
+   wxLongLong GetSpaceUsage() override;
 
    /// as SilentLog (which would affect Summary data access), but
    // applying to Alias file access
@@ -211,13 +207,14 @@ class AliasBlockFile : public BlockFile
    //
    wxFileName GetAliasedFileName() { return mAliasedFileName; }
    void ChangeAliasedFileName(wxFileName newAliasedFile);
-   virtual bool IsAlias() { return true; }
+   bool IsAlias() override { return true; }
 
  protected:
+   // Introduce a NEW virtual.
    /// Write the summary to disk, using the derived ReadData() to get the data
    virtual void WriteSummary();
    /// Read the summary into a buffer
-   virtual bool ReadSummary(void *data);
+   bool ReadSummary(void *data) override;
 
    wxFileName  mAliasedFileName;
    sampleCount mAliasStart;

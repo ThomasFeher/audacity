@@ -54,6 +54,7 @@ out.
 #include <wx/math.h>
 
 #include "Internat.h"
+#include "MemoryX.h"
 
 // msmeyer: Define this to add debug output via printf()
 //#define DEBUG_BLOCKFILE
@@ -193,7 +194,7 @@ void BlockFile::Deinit()
 /// This method also has the side effect of setting the mMin, mMax,
 /// and mRMS members of this class.
 ///
-/// You must not delete the returned buffer; it is static to this
+/// You must not DELETE the returned buffer; it is static to this
 /// method.
 ///
 /// @param buffer A buffer containing the sample data to be analyzed
@@ -386,8 +387,8 @@ void BlockFile::GetMinMax(sampleCount start, sampleCount len,
                   float *outMin, float *outMax, float *outRMS)
 {
    // TODO: actually use summaries
-   samplePtr blockData = NewSamples(len, floatSample);
-   this->ReadData(blockData, floatSample, start, len);
+   SampleBuffer blockData(len, floatSample);
+   this->ReadData(blockData.ptr(), floatSample, start, len);
 
    float min = FLT_MAX;
    float max = -FLT_MAX;
@@ -395,7 +396,7 @@ void BlockFile::GetMinMax(sampleCount start, sampleCount len,
 
    for( int i = 0; i < len; i++ )
    {
-      float sample = ((float*)blockData)[i];
+      float sample = ((float*)blockData.ptr())[i];
 
       if( sample > max )
          max = sample;
@@ -403,8 +404,6 @@ void BlockFile::GetMinMax(sampleCount start, sampleCount len,
          min = sample;
       sumsq += (sample*sample);
    }
-
-   DeleteSamples(blockData);
 
    *outMin = min;
    *outMax = max;
@@ -570,7 +569,7 @@ void AliasBlockFile::WriteSummary()
 
    if( !summaryFile.IsOpened() ){
       // Never silence the Log w.r.t write errors; they always count
-      // as new errors
+      // as NEW errors
       wxLogError(wxT("Unable to write summary data to file %s"),
                    mFileName.GetFullPath().c_str());
       // If we can't write, there's nothing to do.
@@ -579,14 +578,12 @@ void AliasBlockFile::WriteSummary()
 
    // To build the summary data, call ReadData (implemented by the
    // derived classes) to get the sample data
-   samplePtr sampleData = NewSamples(mLen, floatSample);
-   this->ReadData(sampleData, floatSample, 0, mLen);
+   SampleBuffer sampleData(mLen, floatSample);
+   this->ReadData(sampleData.ptr(), floatSample, 0, mLen);
 
-   void *summaryData = BlockFile::CalcSummary(sampleData, mLen,
+   void *summaryData = BlockFile::CalcSummary(sampleData.ptr(), mLen,
                                             floatSample);
    summaryFile.Write(summaryData, mSummaryInfo.totalSummaryBytes);
-
-   DeleteSamples(sampleData);
 }
 
 AliasBlockFile::~AliasBlockFile()
@@ -601,25 +598,27 @@ AliasBlockFile::~AliasBlockFile()
 bool AliasBlockFile::ReadSummary(void *data)
 {
    wxFFile summaryFile(mFileName.GetFullPath(), wxT("rb"));
-   wxLogNull *silence=0;
-   if(mSilentLog)silence= new wxLogNull();
 
-   if( !summaryFile.IsOpened() ){
+   {
+      Maybe<wxLogNull> silence{};
+      if (mSilentLog)
+         silence.create();
 
-      // new model; we need to return valid data
-      memset(data,0,(size_t)mSummaryInfo.totalSummaryBytes);
-      if(silence) delete silence;
+      if (!summaryFile.IsOpened()){
 
-      // we silence the logging for this operation in this object
-      // after first occurrence of error; it's already reported and
-      // spewing at the user will complicate the user's ability to
-      // deal
-      mSilentLog=TRUE;
-      return true;
+         // NEW model; we need to return valid data
+         memset(data, 0, (size_t)mSummaryInfo.totalSummaryBytes);
 
-   }else mSilentLog=FALSE; // worked properly, any future error is new
+         // we silence the logging for this operation in this object
+         // after first occurrence of error; it's already reported and
+         // spewing at the user will complicate the user's ability to
+         // deal
+         mSilentLog = TRUE;
+         return true;
 
-   if(silence) delete silence;
+      }
+      else mSilentLog = FALSE; // worked properly, any future error is NEW
+   }
 
    int read = summaryFile.Read(data, (size_t)mSummaryInfo.totalSummaryBytes);
 

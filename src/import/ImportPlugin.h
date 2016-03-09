@@ -55,10 +55,12 @@ but little else.
 #ifndef __AUDACITY_IMPORTER__
 #define __AUDACITY_IMPORTER__
 
+#include "../Audacity.h"
 #include <wx/arrstr.h>
 #include <wx/filename.h>
 #include <wx/string.h>
 #include <wx/list.h>
+#include "../MemoryX.h"
 
 #include "../widgets/ProgressDialog.h"
 
@@ -68,13 +70,13 @@ class Tags;
 
 class ImportFileHandle;
 
-class ImportPlugin
+class ImportPlugin /* not final */
 {
 public:
 
    // Get unique string ID of this plugin, usually it corresponds
    // to the underlying library, i.e. "libsndfile", "libflac", "libav"
-   // These MUST NOT change across Audacity versions (but new IDs can
+   // These MUST NOT change across Audacity versions (but NEW IDs can
    // be added).
    virtual wxString GetPluginStringID() = 0;
 
@@ -90,7 +92,7 @@ public:
       return mExtensions;
    }
 
-   bool SupportsExtension(wxString extension)
+   bool SupportsExtension(const wxString &extension)
    {
       // Case-insensitive check if extension is supported
       return mExtensions.Index(extension, false) != wxNOT_FOUND;
@@ -99,7 +101,7 @@ public:
    // Open the given file, returning true if it is in a recognized
    // format, false otherwise.  This puts the importer into the open
    // state.
-   virtual ImportFileHandle *Open(wxString Filename) = 0;
+   virtual ImportFileHandle *Open(const wxString &Filename) = 0;
 
    virtual ~ImportPlugin() { }
 
@@ -114,22 +116,17 @@ protected:
 };
 
 
-class ImportFileHandle
+class ImportFileHandle /* not final */
 {
 public:
    ImportFileHandle(const wxString & filename)
    :  mFilename(filename),
-   mProgress(NULL)
+   mProgress{}
    {
    }
 
    virtual ~ImportFileHandle()
    {
-      if (mProgress != NULL)
-      {
-         delete mProgress;
-         mProgress = NULL;
-      }
    }
 
    // The importer should call this to create the progress dialog and
@@ -140,8 +137,7 @@ public:
       wxString title;
 
       title.Printf(_("Importing %s"), GetFileDescription().c_str());
-      mProgress = new ProgressDialog(title,
-                                     f.GetFullName());
+      mProgress.create(title, f.GetFullName());
    }
 
    // This is similar to GetImporterDescription, but if possible the
@@ -170,7 +166,7 @@ public:
 
 protected:
    wxString mFilename;
-   ProgressDialog *mProgress;
+   Maybe<ProgressDialog> mProgress;
 };
 
 
@@ -178,7 +174,7 @@ protected:
 class UnusableImportPlugin
 {
 public:
-   UnusableImportPlugin(wxString formatName, wxArrayString extensions):
+   UnusableImportPlugin(const wxString &formatName, wxArrayString extensions):
       mFormatName(formatName),
       mExtensions(extensions)
    {
@@ -189,7 +185,7 @@ public:
       return mFormatName;
    }
 
-   bool SupportsExtension(wxString extension)
+   bool SupportsExtension(const wxString &extension)
    {
       return mExtensions.Index(extension, false) != wxNOT_FOUND;
    }

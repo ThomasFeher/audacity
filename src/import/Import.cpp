@@ -35,6 +35,10 @@ and ImportLOF.cpp.
 
 
 
+#include "../Audacity.h"
+#include "Import.h"
+#include "ImportPlugin.h"
+
 #include <wx/textctrl.h>
 #include <wx/msgdlg.h>
 #include <wx/string.h>
@@ -44,11 +48,8 @@ and ImportLOF.cpp.
 #include <wx/arrimpl.cpp>
 #include <wx/listimpl.cpp>
 #include "../ShuttleGui.h"
-#include "../Audacity.h"
 #include "../Project.h"
 
-#include "Import.h"
-#include "ImportPlugin.h"
 #include "ImportPCM.h"
 #include "ImportMP3.h"
 #include "ImportOGG.h"
@@ -62,7 +63,6 @@ and ImportLOF.cpp.
 
 WX_DEFINE_LIST(ImportPluginList);
 WX_DEFINE_LIST(UnusableImportPluginList);
-WX_DEFINE_LIST(FormatList);
 WX_DEFINE_OBJARRAY(ExtImportItems);
 
 // ============================================================================
@@ -138,8 +138,13 @@ void Importer::GetSupportedImportFormats(FormatList *formatList)
    while(importPluginNode)
    {
       ImportPlugin *importPlugin = importPluginNode->GetData();
-      formatList->Append(new Format(importPlugin->GetPluginFormatDescription(),
-                                    importPlugin->GetSupportedExtensions()));
+#ifdef __AUDACITY_OLD_STD__
+      formatList->push_back(Format{importPlugin->GetPluginFormatDescription(),
+                               importPlugin->GetSupportedExtensions()});
+#else
+      formatList->emplace_back(importPlugin->GetPluginFormatDescription(),
+                               importPlugin->GetSupportedExtensions());
+#endif
       importPluginNode = importPluginNode->GetNext();
    }
 }
@@ -310,16 +315,16 @@ void Importer::WriteImportItems()
       gPrefs->Write (name, val);
       gPrefs->Flush();
    }
-   /* If we used to have more items than we have now, delete the excess items.
+   /* If we used to have more items than we have now, DELETE the excess items.
    We just keep deleting items and incrementing until we find there aren't any
-   more to delete.*/
+   more to DELETE.*/
    i = this->mExtImportItems->Count();
    do {
      name.Printf (wxT("/ExtImportItems/Item%d"), (int)i);
-     // No item to delete?  Then it's time to finish.
+     // No item to DELETE?  Then it's time to finish.
      if (!gPrefs->Read(name, &val))
         break;
-     // Failure to delete probably means a read-only config file.
+     // Failure to DELETE probably means a read-only config file.
      // no point continuing.
      // TODO: Possibly report (once).
      if( !gPrefs->DeleteEntry (name, false))
@@ -349,7 +354,7 @@ ExtImportItem *Importer::CreateDefaultImportItem()
 }
 
 // returns number of tracks imported
-int Importer::Import(wxString fName,
+int Importer::Import(const wxString &fName,
                      TrackFactory *trackFactory,
                      Track *** tracks,
                      Tags *tags,
@@ -751,19 +756,24 @@ wxDialog( parent, id, title, position, size, style | wxRESIZE_BORDER )
    mFile = _mFile;
    scount = mFile->GetStreamCount();
    for (wxInt32 i = 0; i < scount; i++)
-      mFile->SetStreamUsage(i,FALSE);
+      mFile->SetStreamUsage(i, FALSE);
 
-   wxBoxSizer *vertSizer = new wxBoxSizer( wxVERTICAL );
-   wxArrayString *choices = mFile->GetStreamInfo();
-   StreamList = new wxListBox(this, -1, wxDefaultPosition, wxDefaultSize, *choices , wxLB_EXTENDED | wxLB_ALWAYS_SB);
+   wxBoxSizer *vertSizer;
+   {
+      auto uVertSizer = std::make_unique<wxBoxSizer>(wxVERTICAL);
+      vertSizer = uVertSizer.get();
 
-   vertSizer->Add( StreamList, 1, wxEXPAND | wxALIGN_LEFT | wxALL, 5 );
+      wxArrayString *choices = mFile->GetStreamInfo();
+      StreamList = safenew wxListBox(this, -1, wxDefaultPosition, wxDefaultSize, *choices, wxLB_EXTENDED | wxLB_ALWAYS_SB);
 
-   vertSizer->Add( CreateStdButtonSizer(this, eCancelButton|eOkButton), 0, wxEXPAND );
+      vertSizer->Add(StreamList, 1, wxEXPAND | wxALIGN_LEFT | wxALL, 5);
 
-   SetAutoLayout( true );
+      vertSizer->Add(CreateStdButtonSizer(this, eCancelButton | eOkButton).release(), 0, wxEXPAND);
 
-   SetSizer( vertSizer );
+      SetAutoLayout(true);
+
+      SetSizer(uVertSizer.release());
+   }
 
    vertSizer->Fit( this );
 

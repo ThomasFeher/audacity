@@ -411,7 +411,7 @@ bool BatchCommands::IsMono()
    return mono;
 }
 
-wxString BatchCommands::BuildCleanFileName(wxString fileName, wxString extension)
+wxString BatchCommands::BuildCleanFileName(const wxString &fileName, const wxString &extension)
 {
    wxFileName newFileName(fileName);
    wxString justName = newFileName.GetName();
@@ -689,7 +689,7 @@ bool BatchCommands::ApplyChain(const wxString & filename)
       return false;
    }
 
-   // Chain was successfully applied; save the new project state
+   // Chain was successfully applied; save the NEW project state
    wxString longDesc, shortDesc;
    wxString name = gPrefs->Read(wxT("/Batch/ActiveChain"), wxEmptyString);
    if (name.IsEmpty())

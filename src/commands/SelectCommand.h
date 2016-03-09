@@ -19,20 +19,20 @@
 #include "CommandType.h"
 #include "Command.h"
 
-class SelectCommandType : public CommandType
+class SelectCommandType final : public CommandType
 {
 public:
-   virtual wxString BuildName();
-   virtual void BuildSignature(CommandSignature &signature);
-   virtual Command *Create(CommandOutputTarget *target);
+   wxString BuildName() override;
+   void BuildSignature(CommandSignature &signature) override;
+   Command *Create(CommandOutputTarget *target) override;
 };
 
-class SelectCommand : public CommandImplementation
+class SelectCommand final : public CommandImplementation
 {
 public:
    SelectCommand(SelectCommandType &type, CommandOutputTarget *target)
       : CommandImplementation(type, target) { }
-   virtual bool Apply(CommandExecutionContext context);
+   bool Apply(CommandExecutionContext context) override;
 };
 
 #endif /* End of include guard: __SELECTCOMMAND__ */

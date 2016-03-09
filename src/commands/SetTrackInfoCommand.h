@@ -19,15 +19,15 @@
 #include "Command.h"
 #include "CommandType.h"
 
-class SetTrackInfoCommandType : public CommandType
+class SetTrackInfoCommandType final : public CommandType
 {
 public:
-   virtual wxString BuildName();
-   virtual void BuildSignature(CommandSignature &signature);
-   virtual Command *Create(CommandOutputTarget *target);
+   wxString BuildName() override;
+   void BuildSignature(CommandSignature &signature) override;
+   Command *Create(CommandOutputTarget *target) override;
 };
 
-class SetTrackInfoCommand : public CommandImplementation
+class SetTrackInfoCommand final : public CommandImplementation
 {
 public:
    SetTrackInfoCommand(CommandType &type, CommandOutputTarget *target)
@@ -36,7 +36,7 @@ public:
    virtual ~SetTrackInfoCommand()
    { }
 
-   virtual bool Apply(CommandExecutionContext context);
+   bool Apply(CommandExecutionContext context) override;
 };
 
 #endif /* End of include guard: __SETTRACKINFOCOMMAND__ */

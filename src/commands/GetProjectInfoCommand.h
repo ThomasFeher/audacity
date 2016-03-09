@@ -19,16 +19,16 @@
 #include "Command.h"
 #include "CommandType.h"
 
-class GetProjectInfoCommandType : public CommandType
+class GetProjectInfoCommandType final : public CommandType
 {
 public:
-   virtual wxString BuildName();
-   virtual void BuildSignature(CommandSignature &signature);
-   virtual Command *Create(CommandOutputTarget *target);
+   wxString BuildName() override;
+   void BuildSignature(CommandSignature &signature) override;
+   Command *Create(CommandOutputTarget *target) override;
 };
 
 
-class GetProjectInfoCommand : public CommandImplementation
+class GetProjectInfoCommand final : public CommandImplementation
 {
 public:
    GetProjectInfoCommand(CommandType &type, CommandOutputTarget *target)
@@ -37,7 +37,7 @@ public:
    virtual ~GetProjectInfoCommand()
    { }
 
-   virtual bool Apply(CommandExecutionContext context);
+   bool Apply(CommandExecutionContext context) override;
 
 private:
    int SendNumberOfTracks(CommandExecutionContext context);

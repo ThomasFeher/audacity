@@ -70,7 +70,7 @@ void GetQTImportPlugin(ImportPluginList *importPluginList,
 
 #define kQTAudioPropertyID_MaxAudioSampleSize   'mssz'
 
-class QTImportPlugin : public ImportPlugin
+class QTImportPlugin final : public ImportPlugin
 {
  public:
    QTImportPlugin()
@@ -111,13 +111,13 @@ class QTImportPlugin : public ImportPlugin
    wxString GetPluginStringID() { return wxT("quicktime"); }
 
    wxString GetPluginFormatDescription();
-   ImportFileHandle *Open(wxString Filename);
+   ImportFileHandle *Open(const wxString & Filename);
 
  private:
    bool mInitialized;
 };
 
-class QTImportFileHandle : public ImportFileHandle
+class QTImportFileHandle final : public ImportFileHandle
 {
  public:
    QTImportFileHandle(const wxString & name, Movie movie)
@@ -173,7 +173,7 @@ wxString QTImportPlugin::GetPluginFormatDescription()
    return DESC;
 }
 
-ImportFileHandle *QTImportPlugin::Open(wxString Filename)
+ImportFileHandle *QTImportPlugin::Open(const wxString & Filename)
 {
    OSErr err;
    FSRef inRef;
