@@ -1,0 +1,20 @@
+{
+    "package": {
+        "name": "ubuntu-nightly",
+        "repo": "Audacity",
+        "subject": "ThomasFeher",
+    },
+
+    "version": {
+        "name": "commit-",
+        "desc": "",
+        "released": "",
+        "vcs_tag": "",
+        "gpgSign": false
+    },
+
+    "files": {
+        "includePattern": "audacity"
+    }
+    "publish": true
+}
